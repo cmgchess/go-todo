@@ -4,6 +4,13 @@ import (
 	"net/http"
 )
 
-func PingHandler(w http.ResponseWriter, r *http.Request) {
+type PingHandler struct {
+}
+
+func NewPingHandler() *PingHandler {
+	return &PingHandler{}
+}
+
+func (h *PingHandler) HealthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("pong"))
 }

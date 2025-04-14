@@ -14,12 +14,20 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func GetTodosHandler(w http.ResponseWriter, r *http.Request) {
-	todos := storage.GetTodos()
+type TodoHandler struct {
+	store storage.Storage
+}
+
+func NewTodoHandler(store storage.Storage) *TodoHandler {
+	return &TodoHandler{store: store}
+}
+
+func (h *TodoHandler) GetTodosHandler(w http.ResponseWriter, r *http.Request) {
+	todos := h.store.GetTodos()
 	utils.JSON(w, http.StatusOK, todos)
 }
 
-func GetTodoByIDHandler(w http.ResponseWriter, r *http.Request) {
+func (h *TodoHandler) GetTodoByIDHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 	i, err := strconv.Atoi(id)
@@ -28,7 +36,7 @@ func GetTodoByIDHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	todo, err := storage.GetTodoByID(i)
+	todo, err := h.store.GetTodoByID(i)
 	if err != nil {
 		utils.Error(w, http.StatusNotFound, err)
 		return
@@ -37,7 +45,7 @@ func GetTodoByIDHandler(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusOK, todo)
 }
 
-func AddTodoHandler(w http.ResponseWriter, r *http.Request) {
+func (h *TodoHandler) AddTodoHandler(w http.ResponseWriter, r *http.Request) {
 	var todoRequest models.TodoRequest
 	if err := json.NewDecoder(r.Body).Decode(&todoRequest); err != nil {
 		utils.Error(w, http.StatusBadRequest, errors.New("invalid request payload"))
@@ -49,11 +57,11 @@ func AddTodoHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	todo := storage.AddTodo(todoRequest)
+	todo := h.store.AddTodo(todoRequest)
 	utils.JSON(w, http.StatusCreated, todo)
 }
 
-func EnableTodoHandler(w http.ResponseWriter, r *http.Request) {
+func (h *TodoHandler) EnableTodoHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 	i, err := strconv.Atoi(id)
@@ -61,7 +69,7 @@ func EnableTodoHandler(w http.ResponseWriter, r *http.Request) {
 		utils.Error(w, http.StatusBadRequest, errors.New("invalid ID"))
 		return
 	}
-	todo, err := storage.ChangeEnableStatus(i, true)
+	todo, err := h.store.ChangeEnableStatus(i, true)
 	if err != nil {
 		utils.Error(w, http.StatusNotFound, err)
 		return
@@ -69,7 +77,7 @@ func EnableTodoHandler(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusOK, todo)
 }
 
-func DisableTodoHandler(w http.ResponseWriter, r *http.Request) {
+func (h *TodoHandler) DisableTodoHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 	i, err := strconv.Atoi(id)
@@ -77,7 +85,7 @@ func DisableTodoHandler(w http.ResponseWriter, r *http.Request) {
 		utils.Error(w, http.StatusBadRequest, errors.New("invalid ID"))
 		return
 	}
-	todo, err := storage.ChangeEnableStatus(i, false)
+	todo, err := h.store.ChangeEnableStatus(i, false)
 	if err != nil {
 		utils.Error(w, http.StatusNotFound, err)
 		return
@@ -85,7 +93,7 @@ func DisableTodoHandler(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusOK, todo)
 }
 
-func UpdateTodoHandler(w http.ResponseWriter, r *http.Request) {
+func (h *TodoHandler) UpdateTodoHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 	i, err := strconv.Atoi(id)
@@ -105,7 +113,7 @@ func UpdateTodoHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	todo, err := storage.UpdateTodo(i, todoRequest)
+	todo, err := h.store.UpdateTodo(i, todoRequest)
 	if err != nil {
 		utils.Error(w, http.StatusNotFound, err)
 		return
@@ -113,7 +121,7 @@ func UpdateTodoHandler(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, http.StatusOK, todo)
 }
 
-func DeleteTodoHandler(w http.ResponseWriter, r *http.Request) {
+func (h *TodoHandler) DeleteTodoHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 	i, err := strconv.Atoi(id)
@@ -121,10 +129,9 @@ func DeleteTodoHandler(w http.ResponseWriter, r *http.Request) {
 		utils.Error(w, http.StatusBadRequest, errors.New("invalid ID"))
 		return
 	}
-	if err := storage.DeleteTodo(i); err != nil {
+	if err := h.store.DeleteTodo(i); err != nil {
 		utils.Error(w, http.StatusNotFound, err)
 		return
-
 	}
 	w.WriteHeader(http.StatusNoContent)
 	w.Write([]byte("Todo deleted successfully"))
