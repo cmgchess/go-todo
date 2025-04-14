@@ -1,6 +1,10 @@
 package router
 
 import (
+	"log"
+
+	"github.com/cmgchess/gotodo/configs"
+	"github.com/cmgchess/gotodo/db"
 	"github.com/cmgchess/gotodo/handlers"
 	"github.com/cmgchess/gotodo/storage"
 	"github.com/gorilla/mux"
@@ -9,8 +13,19 @@ import (
 func SetupRouter() *mux.Router {
 	r := mux.NewRouter()
 
+	cfg := configs.Config{
+		DBUser: configs.Envs.DBUser,
+		DBPass: configs.Envs.DBPass,
+		DBHost: configs.Envs.DBHost,
+		DBName: configs.Envs.DBName,
+	}
+	db, err := db.NewPostgreSQLStorage(cfg)
+	if err != nil {
+		log.Fatalf("failed to connect to database: %v", err)
+	}
+
 	pingHandler := handlers.NewPingHandler()
-	todoHandler := handlers.NewTodoHandler(storage.NewInMemoryStorage())
+	todoHandler := handlers.NewTodoHandler(storage.NewPostgresStorage(db))
 
 	r.HandleFunc("/ping", pingHandler.HealthHandler).Methods("GET")
 

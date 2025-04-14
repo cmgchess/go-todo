@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -14,7 +15,9 @@ import (
 func TestTodoHandlers(t *testing.T) {
 	t.Run("should return 200 if todos return successfully", func(t *testing.T) {
 		todoHandler := NewTodoHandler(&mockStore{
-			GetTodosFunc: func() []models.Todo { return []models.Todo{} },
+			GetTodosFunc: func(ctx context.Context) ([]models.Todo, error) {
+				return []models.Todo{}, nil
+			},
 		})
 		req, err := http.NewRequest(http.MethodGet, "/todos", nil)
 		if err != nil {
@@ -31,9 +34,30 @@ func TestTodoHandlers(t *testing.T) {
 		}
 	})
 
+	t.Run("should return 500 if internal error occurs when fetching todos", func(t *testing.T) {
+		todoHandler := NewTodoHandler(&mockStore{
+			GetTodosFunc: func(ctx context.Context) ([]models.Todo, error) {
+				return nil, errors.New("internal server error")
+			},
+		})
+		req, err := http.NewRequest(http.MethodGet, "/todos", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rr := httptest.NewRecorder()
+		router := mux.NewRouter()
+		
+		router.HandleFunc("/todos", todoHandler.GetTodosHandler).Methods(http.MethodGet)
+		router.ServeHTTP(rr, req)
+	
+		if rr.Code != http.StatusInternalServerError {
+			t.Errorf("expected status code 500, got %d", rr.Code)
+		}
+	})
+
 	t.Run("should return 200 if todo by ID return successfully", func(t *testing.T) {
 		todoHandler := NewTodoHandler(&mockStore{
-			GetTodoByIDFunc: func(id int) (*models.Todo, error) {
+			GetTodoByIDFunc: func(ctx context.Context, id int) (*models.Todo, error) {
 				return &models.Todo{ID: id, Name: "Test Todo"}, nil
 			},
 		})
@@ -71,7 +95,7 @@ func TestTodoHandlers(t *testing.T) {
 
 	t.Run("should return 404 if todo not found when get todo by ID", func(t *testing.T) {
 		todoHandler := NewTodoHandler(&mockStore{
-			GetTodoByIDFunc: func(id int) (*models.Todo, error) {
+			GetTodoByIDFunc: func(ctx context.Context, id int) (*models.Todo, error) {
 				return nil, errors.New("todo not found")
 			},
 		})
@@ -92,8 +116,8 @@ func TestTodoHandlers(t *testing.T) {
 
 	t.Run("should return 201 if todo added successfully", func(t *testing.T) {
 		todoHandler := NewTodoHandler(&mockStore{
-			AddTodoFunc: func(todoRequest models.TodoRequest) models.Todo {
-				return models.Todo{ID: 1, Name: todoRequest.Name}
+			AddTodoFunc: func(ctx context.Context, todoRequest models.TodoRequest) (models.Todo, error) {
+				return models.Todo{ID: 1, Name: todoRequest.Name}, nil
 			},
 		})
 		body := strings.NewReader(`{"name": "Test Todo", "description": "Testing add"}`)
@@ -148,9 +172,31 @@ func TestTodoHandlers(t *testing.T) {
 		}
 	})
 
+	t.Run("should return 500 if internal error occurs when adding todo", func(t *testing.T) {
+		todoHandler := NewTodoHandler(&mockStore{
+			AddTodoFunc: func(ctx context.Context, todoRequest models.TodoRequest) (models.Todo, error) {
+				return models.Todo{}, errors.New("internal server error")
+			},
+		})
+		body := strings.NewReader(`{"name": "Test Todo", "description": "Testing add"}`)
+		req, err := http.NewRequest(http.MethodPost, "/todos", body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rr := httptest.NewRecorder()
+		router := mux.NewRouter()
+
+		router.HandleFunc("/todos", todoHandler.AddTodoHandler).Methods(http.MethodPost)
+		router.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusInternalServerError {
+			t.Errorf("expected status code 500, got %d", rr.Code)
+		}
+	})
+
 	t.Run("should return 200 if todo enabled successfully", func(t *testing.T) {
 		todoHandler := NewTodoHandler(&mockStore{
-			ChangeEnableStatusFunc: func(id int, enabled bool) (*models.Todo, error) {
+			ChangeEnableStatusFunc: func(ctx context.Context, id int, enabled bool) (*models.Todo, error) {
 				return &models.Todo{ID: id, Name: "Test Todo", Enabled: enabled}, nil
 			},
 		})
@@ -188,7 +234,7 @@ func TestTodoHandlers(t *testing.T) {
 
 	t.Run("should return 404 if todo not found when enable", func(t *testing.T) {
 		todoHandler := NewTodoHandler(&mockStore{
-			ChangeEnableStatusFunc: func(id int, enabled bool) (*models.Todo, error) {
+			ChangeEnableStatusFunc: func(ctx context.Context, id int, enabled bool) (*models.Todo, error) {
 				return nil, errors.New("todo not found")
 			},
 		})
@@ -209,7 +255,7 @@ func TestTodoHandlers(t *testing.T) {
 
 	t.Run("should return 200 if todo disabled successfully", func(t *testing.T) {
 		todoHandler := NewTodoHandler(&mockStore{
-			ChangeEnableStatusFunc: func(id int, enabled bool) (*models.Todo, error) {
+			ChangeEnableStatusFunc: func(ctx context.Context, id int, enabled bool) (*models.Todo, error) {
 				return &models.Todo{ID: id, Name: "Test Todo", Enabled: enabled}, nil
 			},
 		})
@@ -247,7 +293,7 @@ func TestTodoHandlers(t *testing.T) {
 
 	t.Run("should return 404 if todo not found when disable", func(t *testing.T) {
 		todoHandler := NewTodoHandler(&mockStore{
-			ChangeEnableStatusFunc: func(id int, enabled bool) (*models.Todo, error) {
+			ChangeEnableStatusFunc: func(ctx context.Context, id int, enabled bool) (*models.Todo, error) {
 				return nil, errors.New("todo not found")
 			},
 		})
@@ -268,7 +314,7 @@ func TestTodoHandlers(t *testing.T) {
 
 	t.Run("should return 200 if todo updated successfully", func(t *testing.T) {
 		todoHandler := NewTodoHandler(&mockStore{
-			UpdateTodoFunc: func(id int, todoRequest models.TodoRequest) (*models.Todo, error) {
+			UpdateTodoFunc: func(ctx context.Context, id int, todoRequest models.TodoRequest) (*models.Todo, error) {
 				return &models.Todo{ID: id, Name: todoRequest.Name}, nil
 			},
 		})
@@ -344,7 +390,7 @@ func TestTodoHandlers(t *testing.T) {
 
 	t.Run("should return 404 if todo not found when update", func(t *testing.T) {
 		todoHandler := NewTodoHandler(&mockStore{
-			UpdateTodoFunc: func(id int, todoRequest models.TodoRequest) (*models.Todo, error) {
+			UpdateTodoFunc: func(ctx context.Context, id int, todoRequest models.TodoRequest) (*models.Todo, error) {
 				return nil, errors.New("todo not found")
 			},
 		})
@@ -366,7 +412,7 @@ func TestTodoHandlers(t *testing.T) {
 
 	t.Run("should return 200 if todo deleted successfully", func(t *testing.T) {
 		todoHandler := NewTodoHandler(&mockStore{
-			DeleteTodoFunc: func(id int) error { return nil },
+			DeleteTodoFunc: func(ctx context.Context, id int) error { return nil },
 		})
 		req, err := http.NewRequest(http.MethodDelete, "/todos/1", nil)
 		if err != nil {
@@ -402,7 +448,7 @@ func TestTodoHandlers(t *testing.T) {
 
 	t.Run("should return 404 if todo not found when delete", func(t *testing.T) {
 		todoHandler := NewTodoHandler(&mockStore{
-			DeleteTodoFunc: func(id int) error { return errors.New("todo not found") },
+			DeleteTodoFunc: func(ctx context.Context, id int) error { return errors.New("todo not found") },
 		})
 		req, err := http.NewRequest(http.MethodDelete, "/todos/1", nil)
 		if err != nil {
@@ -421,34 +467,34 @@ func TestTodoHandlers(t *testing.T) {
 }
 
 type mockStore struct {
-	GetTodosFunc           func() []models.Todo
-	GetTodoByIDFunc        func(id int) (*models.Todo, error)
-	AddTodoFunc            func(todoRequest models.TodoRequest) models.Todo
-	ChangeEnableStatusFunc func(id int, enabled bool) (*models.Todo, error)
-	UpdateTodoFunc         func(id int, todoRequest models.TodoRequest) (*models.Todo, error)
-	DeleteTodoFunc         func(id int) error
+	GetTodosFunc           func(ctx context.Context) ([]models.Todo, error)
+	GetTodoByIDFunc        func(ctx context.Context, id int) (*models.Todo, error)
+	AddTodoFunc            func(ctx context.Context, todoRequest models.TodoRequest) (models.Todo, error)
+	ChangeEnableStatusFunc func(ctx context.Context, id int, enabled bool) (*models.Todo, error)
+	UpdateTodoFunc         func(ctx context.Context, id int, todoRequest models.TodoRequest) (*models.Todo, error)
+	DeleteTodoFunc         func(ctx context.Context, id int) error
 }
 
-func (m *mockStore) GetTodos() []models.Todo {
-	return m.GetTodosFunc()
+func (m *mockStore) GetTodos(ctx context.Context) ([]models.Todo, error) {
+	return m.GetTodosFunc(ctx)
 }
 
-func (m *mockStore) GetTodoByID(id int) (*models.Todo, error) {
-	return m.GetTodoByIDFunc(id)
+func (m *mockStore) GetTodoByID(ctx context.Context, id int) (*models.Todo, error) {
+	return m.GetTodoByIDFunc(ctx, id)
 }
 
-func (m *mockStore) AddTodo(todoRequest models.TodoRequest) models.Todo {
-	return m.AddTodoFunc(todoRequest)
+func (m *mockStore) AddTodo(ctx context.Context, todoRequest models.TodoRequest) (models.Todo, error) {
+	return m.AddTodoFunc(ctx, todoRequest)
 }
 
-func (m *mockStore) ChangeEnableStatus(id int, enabled bool) (*models.Todo, error) {
-	return m.ChangeEnableStatusFunc(id, enabled)
+func (m *mockStore) ChangeEnableStatus(ctx context.Context, id int, enabled bool) (*models.Todo, error) {
+	return m.ChangeEnableStatusFunc(ctx, id, enabled)
 }
 
-func (m *mockStore) UpdateTodo(id int, todoRequest models.TodoRequest) (*models.Todo, error) {
-	return m.UpdateTodoFunc(id, todoRequest)
+func (m *mockStore) UpdateTodo(ctx context.Context, id int, todoRequest models.TodoRequest) (*models.Todo, error) {
+	return m.UpdateTodoFunc(ctx, id, todoRequest)
 }
 
-func (m *mockStore) DeleteTodo(id int) error {
-	return m.DeleteTodoFunc(id)
+func (m *mockStore) DeleteTodo(ctx context.Context, id int) error {
+	return m.DeleteTodoFunc(ctx, id)
 }
