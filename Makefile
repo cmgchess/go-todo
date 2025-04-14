@@ -3,15 +3,18 @@ ENTRY=cmd/api/main.go
 BIN_DIR=bin
 
 run:
-	go run $(ENTRY)
+	@go run $(ENTRY)
 
 build: $(BIN_DIR)
-	go build -o $(BIN_DIR)/$(APP_NAME) $(ENTRY)
+	@go build -o $(BIN_DIR)/$(APP_NAME) $(ENTRY)
 
 $(BIN_DIR):
-	mkdir -p $(BIN_DIR)
+	@mkdir -p $(BIN_DIR)
 
 clean:
-	rm -rf $(BIN_DIR)
+	@rm -rf $(BIN_DIR)
 
-.PHONY: run build clean
+test:
+	@go test -v -cover ./...
+
+.PHONY: run build clean test
