@@ -3,12 +3,14 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/cmgchess/gotodo/models"
 	"github.com/cmgchess/gotodo/storage"
 	"github.com/cmgchess/gotodo/utils"
+	"github.com/go-playground/validator/v10"
 	"github.com/gorilla/mux"
 )
 
@@ -41,8 +43,9 @@ func AddTodoHandler(w http.ResponseWriter, r *http.Request) {
 		utils.Error(w, http.StatusBadRequest, errors.New("invalid request payload"))
 		return
 	}
-	if todoRequest.Name == "" {
-		utils.Error(w, http.StatusBadRequest, errors.New("name is required"))
+	if err := utils.ValidateStruct(todoRequest); err != nil {
+		errors := err.(validator.ValidationErrors)
+		utils.Error(w, http.StatusBadRequest, fmt.Errorf("invalid payload: %v", errors))
 		return
 	}
 
@@ -95,8 +98,10 @@ func UpdateTodoHandler(w http.ResponseWriter, r *http.Request) {
 		utils.Error(w, http.StatusBadRequest, errors.New("invalid request payload"))
 		return
 	}
-	if todoRequest.Name == "" {
-		utils.Error(w, http.StatusBadRequest, errors.New("name is required"))
+
+	if err := utils.ValidateStruct(todoRequest); err != nil {
+		errors := err.(validator.ValidationErrors)
+		utils.Error(w, http.StatusBadRequest, fmt.Errorf("invalid payload: %v", errors))
 		return
 	}
 
