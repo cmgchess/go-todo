@@ -4,12 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/cmgchess/gotodo/configs"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func NewPostgreSQLStorage(cfg configs.Config) (*pgxpool.Pool, error) {
-	dbpool, err := pgxpool.New(context.Background(), cfg.FormatDSN())
+func NewPostgreSQLStorage(dsn string) (*pgxpool.Pool, error) {
+	dbpool, err := pgxpool.New(context.Background(), dsn)
 	if err != nil {
 		return nil, fmt.Errorf("unable to connect to database: %v", err)
 	}
