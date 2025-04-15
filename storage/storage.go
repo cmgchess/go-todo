@@ -28,7 +28,7 @@ func (s *PostgresStorage) GetTodos(ctx context.Context) ([]models.Todo, error) {
 	}
 	defer rows.Close()
 
-	var todos []models.Todo
+	todos := make([]models.Todo, 0)
 	for rows.Next() {
 		var todo models.Todo
 		if err := rows.Scan(&todo.ID, &todo.Name, &todo.Description, &todo.Completed, &todo.Enabled, &todo.CreatedAt, &todo.UpdatedAt); err == nil {
